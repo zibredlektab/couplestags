@@ -13,7 +13,7 @@ Adafruit_SSD1305 oleds[4] {{128, 32}, {128, 32}, {128, 32}, {128, 32}};
 
 QWIICMUX mux;
 
-AdafruitIO_Feed *feeds[4] = {io.feed("couples-a-op"), io.feed("couples-b-op"), io.feed("couples-c-op"), io.feed("couples-d-op")}; 
+AdafruitIO_Feed* feeds[4] = {io.feed("couples-a-op"), io.feed("couples-b-op"), io.feed("couples-c-op"), io.feed("couples-d-op")}; 
 
 char names[4][16];
 
