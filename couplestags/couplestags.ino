@@ -1,5 +1,7 @@
-#include <splash.h>
+#include <SparkFun_I2C_Mux_Arduino_Library.h>
+
 #include <Adafruit_SSD1305.h>
+#include <splash.h>
 #include <Adafruit_GrayOLED.h>
 #include <gfxfont.h>
 #include <Adafruit_GFX.h>
@@ -25,26 +27,22 @@
 // or ethernet clients.
 #include "config.h"
 
-/************************ Example Starts Here *******************************/
+Adafruit_SSD1305 aoled(128, 32);
+Adafruit_SSD1305 boled(128, 32);
+Adafruit_SSD1305 coled(128, 32);
+Adafruit_SSD1305 doled(128, 32);
 
-// holds the current count value for our sketch
-int count = 0;
-// holds the boolean (true/false) state of the light
-bool is_on = false;
+QWIICMUX mux;
 
-// track time of last published messages and limit feed->save events to once
-// every IO_LOOP_DELAY milliseconds
-#define IO_LOOP_DELAY 15000
-unsigned long lastUpdate;
+AdafruitIO_Feed *AOp = io.feed("couples-a-op");
+AdafruitIO_Feed *BOp = io.feed("couples-b-op");
+AdafruitIO_Feed *COp = io.feed("couples-c-op");
+AdafruitIO_Feed *DOp = io.feed("couples-d-op");
 
-// set up the 'counter' feed
-AdafruitIO_Feed *counter = io.feed("counter");
-
-// set up the 'counter-two' feed
-AdafruitIO_Feed *counter_two = io.feed("counter-two");
-
-// set up the 'light' feed
-AdafruitIO_Feed *light = io.feed("light");
+char aname[16];
+char bname[16];
+char cname[16];
+char dname[16];
 
 void setup() {
 
@@ -54,19 +52,53 @@ void setup() {
   // wait for serial monitor to open
   while(! Serial);
 
+  if (mux.begin() == false) {
+    Serial.println("Mux not detected.");
+    while (1);
+  }
+
+  mux.setPort(1);
+  if(!aoled.begin(0x3C, 0)) {
+    Serial.println(F("A SSD1305 allocation failed"));
+    while(1);
+  } else {
+    Serial.println(F("A SSD1305 allocation succeeded"));
+  }
+  
+  mux.setPort(2);
+  if(!boled.begin(0x3C, 0)) {
+    Serial.println(F("B SSD1305 allocation failed"));
+    while(1);
+  } else {
+    Serial.println(F("B SSD1305 allocation succeeded"));
+  }
+
+  mux.setPort(3);
+  if(!coled.begin(0x3C, 0)) {
+    Serial.println(F("C SSD1305 allocation failed"));
+    while(1);
+  } else {
+    Serial.println(F("C SSD1305 allocation succeeded"));
+  }
+  
+  mux.setPort(4);
+  if(!doled.begin(0x3C, 0)) {
+    Serial.println(F("D SSD1305 allocation failed"));
+    while(1);
+  } else {
+    Serial.println(F("D SSD1305 allocation succeeded"));
+  }
+
   Serial.print("Connecting to Adafruit IO");
 
   // connect to io.adafruit.com
   io.connect();
 
-  // attach message handler for the counter feed.
-  counter->onMessage(handleCount);
-
-  // attach the same message handler for the second counter feed.
-  counter_two->onMessage(handleCount);
-
-  // attach a new message handler for the light feed.
-  light->onMessage(handleLight);
+  // attach message handler
+  AOp->onMessage(handleChange);
+  BOp->onMessage(handleChange);
+  COp->onMessage(handleChange);
+  DOp->onMessage(handleChange);
 
   // wait for a connection
   while(io.status() < AIO_CONNECTED) {
@@ -79,9 +111,10 @@ void setup() {
   Serial.println(io.statusText());
 
   // make sure all feeds get their current values right away
-  counter->get();
-  counter_two->get();
-  light->get();
+  AOp->get();
+  BOp->get();
+  COp->get();
+  DOp->get();
 
 }
 
@@ -90,76 +123,38 @@ void loop() {
   // process messages and keep connection alive
   io.run();
 
-  if (millis() > (lastUpdate + IO_LOOP_DELAY)) {
-    Serial.println();
-
-    // save current count to 'counter'
-    Serial.print("sending -> counter ");
-    Serial.println(count);
-    counter->save(count);
-
-    // increment the count by 1 and save the value to 'counter-two'
-    Serial.print("sending -> counter-two ");
-    Serial.println(count + 1);
-    counter_two->save(count + 1);
-
-    // print out the light value we are sending to Adafruit IO
-    Serial.print("sending -> light ");
-    if(is_on)
-      Serial.println("is on.\n");
-    else
-      Serial.println("is off.\n");
-
-    // save state of light to 'light' feed
-    light->save(is_on);
-
-    // increment count value
-    count++;
-
-    // for the purpose of this demo, toggle the
-    // light state based on the count value
-    if((count % 2) == 0)
-      is_on = true;
-    else
-      is_on = false;
-
-    // update timer
-    lastUpdate = millis();
-  }
-
 }
 
-// you can set a separate message handler for a single feed,
-// as we do in this example for the light feed
-void handleLight(AdafruitIO_Data *data) {
+void handleChange(AdafruitIO_Data *data) {
 
-  // print out the received light value
-  Serial.print("received <- light ");
-
-  // use the isTrue helper to get the
-  // boolean state of the light
-  if(data->isTrue())
-    Serial.println("is on.");
-  else
-    Serial.println("is off.");
-
-}
-
-// you can also attach multiple feeds to the same
-// meesage handler function. both counter and counter-two
-// are attached to this callback function, and messages
-// for both will be received by this function.
-void handleCount(AdafruitIO_Data *data) {
-
-  Serial.print("received <- ");
+  Serial.print("Name of ");
 
   // since we are using the same function to handle
   // messages for two feeds, we can use feedName() in
   // order to find out which feed the message came from.
   Serial.print(data->feedName());
-  Serial.print(" ");
+  Serial.print(" is now: ");
 
-  // print out the received count or counter-two value
   Serial.println(data->value());
+
+  char* nametochange;
+
+  if (strcmp(data->feedName(), "couples-a-op") == 0) {
+    nametochange = aname;
+  } else if (strcmp(data->feedName(), "couples-b-op") == 0) {
+    nametochange = bname;
+  } else if (strcmp(data->feedName(), "couples-c-op") == 0) {
+    nametochange = cname;
+  } else if (strcmp(data->feedName(), "couples-d-op") == 0) {
+    nametochange = dname;
+  }
+
+
+  for (int i = 0; i < 16; i++) {
+    nametochange[i] = data->value()[i];
+    if (data->value()[i] == '\0') {
+      break;
+    }
+  }
 
 }
