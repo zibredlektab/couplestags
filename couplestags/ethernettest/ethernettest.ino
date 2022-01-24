@@ -2,10 +2,17 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
 
+#include <Fonts/FreeSansBold12pt7b.h>
+
+#define LARGE_FONT &FreeSansBold12pt7b
+
 AdafruitIO_Feed* feeds[4] = {io.feed("couples-a-op"), io.feed("couples-b-op"), io.feed("couples-c-op"), io.feed("couples-d-op")}; 
 Adafruit_SH1107 oled(64, 128, &Wire);
 
 char names[4][16];
+int xpos, ypos;
+
+unsigned long long timesincelastrefresh = 0;
 
 void setup() {
 
@@ -13,6 +20,7 @@ void setup() {
   oled.setCursor(0, 20);
   oled.clearDisplay();
   oled.setRotation(1);
+  oled.setFont(LARGE_FONT);
   oled.setTextColor(SH110X_WHITE);
   oled.println("Starting up...");
   oled.display();
@@ -47,6 +55,32 @@ void setup() {
 
 void loop() {
   io.run();
+  if (millis() > timesincelastrefresh + 300000) {
+    refreshOled();
+  }
+
+  if (millis() > 36000000) {
+    oled.clearDisplay();
+    oled.display();
+    while(1);
+  }
+}
+
+void refreshOled() {
+  xpos = random(0, 10);
+  ypos = random(10, 20);
+  oled.clearDisplay();
+  oled.setCursor(xpos, ypos);
+  for (int i = 0; i < 4; i++) {
+//    mux.setPort(i);
+    oled.print((char)(i + 65));
+    oled.print(": ");
+    oled.print(names[i]);
+    oled.setCursor(xpos, ypos + 10*(i+1));
+    oled.display();
+  }
+
+  timesincelastrefresh = millis();
 }
 
 void handleChange(AdafruitIO_Data *data) {
@@ -82,14 +116,5 @@ void updateOled(const char cam, char* newname) {
   Serial.print("saved name as '");
   Serial.print(names[port]);
   Serial.println("'");
-
- // mux.setPort(port);
-  oled.clearDisplay();
-  oled.setCursor(0,20);
-  oled.print((char)toupper(cam));
-  oled.print(": ");
-  oled.print(names[port]);
-  oled.display();
-  delay(500);
-  
+  refreshOled();
 }

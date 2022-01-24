@@ -99,6 +99,8 @@ void updateOled(const char cam, char* newname) {
     }
   }
 
+  names[port][15] = '\0';
+
   mux.setPort(port);
   oleds[port].clearDisplay();
   oleds[port].setCursor(0,10);
