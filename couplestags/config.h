@@ -1,9 +1,6 @@
 /************************ Adafruit IO Config *******************************/
+#include "aiokey.h"
 
-// visit io.adafruit.com if you need to create an account,
-// or if you need your Adafruit IO key.
-#define IO_USERNAME "maxbatchelder"
-#define IO_KEY "aio_LDcP38zeofIZdakwQjPeS0VaXgvf"
 
 /******************************* WIFI **************************************/
 
