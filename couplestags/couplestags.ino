@@ -12,8 +12,9 @@
 
 #define LARGE_FONT &FreeSansBold12pt7b
 
-Adafruit_SSD1305 oleds[4] {{128, 32}, {128, 32}, {128, 32}, {128, 32}};
+Adafruit_SSD1305 oleds[4] {{128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}};
 
+#include <Wire.h>
 QWIICMUX mux;
 
 AdafruitIO_Feed* feeds[4] = {io.feed("couples-a-op"), io.feed("couples-b-op"), io.feed("couples-c-op"), io.feed("couples-d-op")}; 
@@ -29,9 +30,13 @@ void setup() {
   Serial.begin(115200);
 
   // wait for serial monitor to open
-  while(! Serial);
+  while(!Serial && millis() < 3000) {};
+  Serial.println("Serial initialized or timed out.");
+  
+  Wire1.setPins(SDA1, SCL1);
+  Wire1.begin();
 
-  if (!mux.begin()) {
+  if (!mux.begin(QWIIC_MUX_DEFAULT_ADDRESS, Wire1)) {
     Serial.println("Mux not detected.");
     while (1);
   }
@@ -52,27 +57,31 @@ void setup() {
 
   for (int i = 0; i < 4; i++) {
     mux.setPort(i);
-    if (!oleds[i].begin(0x3c, 0)) {
+    if (!oleds[i].begin(SSD1305_I2C_ADDRESS, 0)) {
       Serial.print("Oled on port ");
-      Serial.print(i+1);
+      Serial.print(i);
       Serial.println(" failed to initialize");
-      while(1);
+      while(1) yield();
     } else {
       Serial.print("Oled on port ");
       Serial.print(i);
       Serial.println(" initialized");
-      oleds[i].setCursor(0, 20);
       oleds[i].clearDisplay();
-      oleds[i].setRotation(1);
-      oleds[i].setFont(LARGE_FONT);
+      oleds[i].setContrast(0x0);
+      oleds[i].setCursor(0,0);
+      oleds[i].setTextColor(WHITE);
+      oleds[i].setRotation(2);
       oleds[i].println("Starting up...");
       oleds[i].display();
+      oleds[i].setFont(LARGE_FONT);
     }
 
     feeds[i]->onMessage(handleChange);
     feeds[i]->get();
+
   }
 }
+
 
 void loop() {
 
@@ -94,7 +103,7 @@ void loop() {
 
 void refreshOled() {
   xpos = random(0, 10);
-  ypos = random(10, 20);
+  ypos = random(18, 28);
   for (int i = 0; i < 4; i++) {
     mux.setPort(i);
     oleds[i].clearDisplay();
