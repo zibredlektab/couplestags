@@ -1,38 +1,55 @@
 #include "config.h"
 #include <Adafruit_GFX.h>
-#include <Adafruit_SH110X.h>
-
+#include <Adafruit_SSD1305.h>
+#include <SparkFun_I2C_Mux_Arduino_Library.h>
 #include <Fonts/FreeSansBold12pt7b.h>
+
+#include <Wire.h>
 
 #define LARGE_FONT &FreeSansBold12pt7b
 
 AdafruitIO_Feed* feeds[4] = {io.feed("couples-a-op"), io.feed("couples-b-op"), io.feed("couples-c-op"), io.feed("couples-d-op")}; 
-Adafruit_SH1107 oled(64, 128, &Wire);
+Adafruit_SSD1305 oled(128, 32, &Wire1, -1);
 
 char names[4][16];
 int xpos, ypos;
 
+QWIICMUX mux;
+
 unsigned long long timesincelastrefresh = 0;
 
 void setup() {
-
-  oled.begin(0x3C, true);
-  oled.setCursor(0, 20);
-  oled.clearDisplay();
-  oled.setRotation(1);
-  oled.setFont(LARGE_FONT);
-  oled.setTextColor(SH110X_WHITE);
-  oled.println("Starting up...");
-  oled.display();
-
-  pinMode(8, OUTPUT);
-  digitalWrite(8, HIGH);
   
+  
+  delay(1000);
   Serial.begin(115200);
   while(!Serial && millis() < 3000) {};
   Serial.println("Serial initialized or timed out.");
 
+
+  Wire1.setPins(SDA1, SCL1);
+  Wire1.begin();
   
+  if (!mux.begin(0x70, Wire1)) {
+    Serial.println("Mux not detected.");
+    while (1);
+  }
+
+  mux.setPort(0);
+
+  if (!oled.begin(SSD1305_I2C_ADDRESS, 0)) {
+    Serial.println("failed to start oled");
+    while(1);
+  }
+  oled.clearDisplay();
+  oled.setCursor(0,0);
+  oled.setTextColor(WHITE);
+  oled.setRotation(2);
+  oled.setContrast(0x0);
+  oled.println("Starting up...");
+  oled.display();
+  oled.setFont(LARGE_FONT);
+
   Serial.print("Connecting to Adafruit IO");
   io.connect();
   Serial.print("...");
@@ -68,11 +85,11 @@ void loop() {
 
 void refreshOled() {
   xpos = random(0, 10);
-  ypos = random(10, 20);
+  ypos = random(18, 28);
   oled.clearDisplay();
   oled.setCursor(xpos, ypos);
   for (int i = 0; i < 4; i++) {
-//    mux.setPort(i);
+    mux.setPort(i);
     oled.print((char)(i + 65));
     oled.print(": ");
     oled.print(names[i]);

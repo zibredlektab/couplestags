@@ -16,6 +16,7 @@
 //   - Adafruit AirLift Shield -> https://www.adafruit.com/product/4285
 //   - Adafruit AirLift FeatherWing -> https://www.adafruit.com/product/4264
 
+
 #define WIFI_SSID "The Jasmine Dragon"
 #define WIFI_PASS "hotleafjuice"
 
@@ -29,7 +30,7 @@
 //#define ARDUINO_SAMD_MKR1010
 
 // comment out the following lines if you are using fona or ethernet
-/*
+
 #include "AdafruitIO_WiFi.h"
 
 #if defined(USE_AIRLIFT) || defined(ADAFRUIT_METRO_M4_AIRLIFT_LITE) ||         \
@@ -48,7 +49,7 @@ AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS, SPIWIFI_SS,
 #else
 AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS);
 #endif
-*/
+
 /******************************* FONA **************************************/
 
 // the AdafruitIO_FONA client will work with the following boards:
@@ -66,5 +67,5 @@ AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS);
 
 // uncomment the following two lines for ethernet,
 // and comment out the AdafruitIO_WiFi client in the WIFI section
-#include "AdafruitIO_Ethernet.h"
-AdafruitIO_Ethernet io(IO_USERNAME, IO_KEY);
+//#include "AdafruitIO_Ethernet.h"
+//AdafruitIO_Ethernet io(IO_USERNAME, IO_KEY);
