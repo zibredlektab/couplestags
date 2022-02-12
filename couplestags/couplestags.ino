@@ -9,8 +9,11 @@
 
 #include "config.h"
 #include <Fonts/FreeSansBold12pt7b.h>
+#include <Fonts/FreeSans9pt7b.h>
+
 
 #define LARGE_FONT &FreeSansBold12pt7b
+#define MED_FONT &FreeSans9pt7b
 
 Adafruit_SSD1305 oleds[4] {{128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}};
 
@@ -107,9 +110,14 @@ void refreshOled() {
   for (int i = 0; i < 4; i++) {
     mux.setPort(i);
     oleds[i].clearDisplay();
+    oleds[i].setFont(LARGE_FONT);
     oleds[i].setCursor(xpos, ypos);
     oleds[i].print((char)(i + 65));
-    oleds[i].print(": ");
+    oleds[i].print(":");
+    if (strlen(names[i]) >= 7) {
+      oleds[i].setFont(MED_FONT);
+    }
+    oleds[i].print(" ");
     oleds[i].print(names[i]);
     oleds[i].setCursor(xpos, ypos + 10*(i+1));
     oleds[i].display();
