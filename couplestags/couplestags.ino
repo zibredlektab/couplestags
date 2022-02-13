@@ -14,6 +14,7 @@
 
 #define LARGE_FONT &FreeSansBold12pt7b
 #define MED_FONT &FreeSans9pt7b
+#define TIMEOUT 10000
 
 Adafruit_SSD1305 oleds[4] {{128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}};
 
@@ -44,20 +45,6 @@ void setup() {
     while (1);
   }
 
-  Serial.print("Connecting to Adafruit IO");
-  io.connect();
-  
-  // wait for a connection
-  while(io.status() < AIO_CONNECTED) {
-    Serial.print(".");
-    delay(500);
-  }
-  
-  // we are connected
-  Serial.println();
-  Serial.println(io.statusText());
-
-
   for (int i = 0; i < 4; i++) {
     mux.setPort(i);
     if (!oleds[i].begin(SSD1305_I2C_ADDRESS, 0)) {
@@ -74,14 +61,38 @@ void setup() {
       oleds[i].setCursor(0,0);
       oleds[i].setTextColor(WHITE);
       oleds[i].setRotation(2);
-      oleds[i].println("Starting up...");
+      oleds[i].setTextWrap(1);
+      oleds[i].print("Connecting to wifi");
       oleds[i].display();
-      oleds[i].setFont(LARGE_FONT);
     }
+  }
 
+  Serial.print("Connecting to Adafruit IO");
+  io.connect();
+  
+  // wait for a connection
+  unsigned long long timenow = millis();
+  while(io.status() < AIO_CONNECTED && timenow + TIMEOUT >= millis()) {
+    Serial.print(".");
+    printToOleds(".");
+    delay(1000);
+  }
+  
+  // we are connected
+  Serial.println();
+  Serial.println(io.statusText());
+
+  printToOleds((char*)io.statusText());
+  delay(1000);
+
+  while (io.status() < AIO_CONNECTED) {
+    yield();
+  }
+
+
+  for (int i = 0; i < 4; i++) {
     feeds[i]->onMessage(handleChange);
     feeds[i]->get();
-
   }
 }
 
@@ -104,11 +115,20 @@ void loop() {
 
 }
 
+void printToOleds(const char* str) {
+  for (int i = 0; i < 4; i++) {
+    mux.setPort(i);
+    oleds[i].print(str);
+    oleds[i].display();
+  }
+}
+
 void refreshOled() {
   xpos = random(0, 10);
   ypos = random(18, 28);
   for (int i = 0; i < 4; i++) {
     mux.setPort(i);
+    oleds[i].setTextWrap(0);
     oleds[i].clearDisplay();
     oleds[i].setFont(LARGE_FONT);
     oleds[i].setCursor(xpos, ypos);
