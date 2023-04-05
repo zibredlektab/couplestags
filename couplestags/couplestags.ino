@@ -1,4 +1,3 @@
-#include <SparkFun_I2C_Mux_Arduino_Library.h>
 #include <Adafruit_SSD1305.h>
 #include <splash.h>
 #include <Adafruit_GrayOLED.h>
@@ -6,93 +5,133 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SPITFT.h>
 #include <Adafruit_SPITFT_Macros.h>
-
-#include "config.h"
-#include <Fonts/FreeSansBold12pt7b.h>
-#include <Fonts/FreeSans9pt7b.h>
-
-
-#define LARGE_FONT &FreeSansBold12pt7b
-#define MED_FONT &FreeSans9pt7b
-#define TIMEOUT 10000
-
-Adafruit_SSD1305 oleds[4] {{128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}, {128, 32, &Wire1, -1}};
-
 #include <Wire.h>
-QWIICMUX mux;
+#include "config.h"
+#include <Fonts/FreeSerifBold12pt7b.h>
+#include <Fonts/FreeSerif9pt7b.h>
 
-AdafruitIO_Feed* feeds[4] = {io.feed("couples-a-op"), io.feed("couples-b-op"), io.feed("couples-c-op"), io.feed("couples-d-op")}; 
 
-char names[4][16];
-int xpos, ypos;
+#define LARGE_FONT &FreeSerifBold12pt7b
+#define MED_FONT &FreeSerif9pt7b
+#define TIMEOUT 3000
+#define UPDATE 180000
+
+#define LABEL 'B'
+
+Adafruit_SSD1305 display(128, 32, &Wire1, -1);
+
+
+AdafruitIO_Feed *feeda = io.feed("couples-a-op");
+AdafruitIO_Feed *feedb = io.feed("couples-b-op");
+AdafruitIO_Feed *feedc = io.feed("couples-c-op");
+AdafruitIO_Feed *feedd = io.feed("couples-d-op");
+AdafruitIO_Feed *feed1 = io.feed("couples-1st");
+AdafruitIO_Feed *feed2 = io.feed("couples-2nd");
+
+AdafruitIO_Feed* feed;
+bool ACs = false;
+
+char name[16];
+char first[16];
+char second[16];
 
 unsigned long long timesincelastrefresh = 0;
 
 void setup() {
 
-  // start the serial connection
-  Serial.begin(115200);
-
-  // wait for serial monitor to open
-  while(!Serial && millis() < 3000) {};
-  Serial.println("Serial initialized or timed out.");
-  
   Wire1.setPins(SDA1, SCL1);
   Wire1.begin();
 
-  if (!mux.begin(QWIIC_MUX_DEFAULT_ADDRESS, Wire1)) {
-    Serial.println("Mux not detected.");
-    while (1);
+  // start the serial connection
+  Serial.begin(9600);
+
+  // wait for serial monitor to open
+  unsigned long long timeserialstarted = millis();
+  while(!Serial && timeserialstarted + TIMEOUT > millis()) { delay(10); }
+  Serial.println("Serial initialized or timed out.");
+
+
+  if (!display.begin(SSD1305_I2C_ADDRESS, 0)) {
+    Serial.println("Display failed to initialize");
+    while(1) yield();
+  } else {
+    Serial.println("Display initialized");
+    display.clearDisplay();
+    display.setContrast(0x88);
+    display.setCursor(0,0);
+    display.setTextColor(WHITE);
+    display.setRotation(2);
+    display.setTextWrap(1);
+    display.display();
   }
 
-  for (int i = 0; i < 4; i++) {
-    mux.setPort(i);
-    if (!oleds[i].begin(SSD1305_I2C_ADDRESS, 0)) {
-      Serial.print("Oled on port ");
-      Serial.print(i);
-      Serial.println(" failed to initialize");
-      while(1) yield();
-    } else {
-      Serial.print("Oled on port ");
-      Serial.print(i);
-      Serial.println(" initialized");
-      oleds[i].clearDisplay();
-      oleds[i].setContrast(0x0);
-      oleds[i].setCursor(0,0);
-      oleds[i].setTextColor(WHITE);
-      oleds[i].setRotation(2);
-      oleds[i].setTextWrap(1);
-      oleds[i].print("Connecting to wifi");
-      oleds[i].display();
+
+  switch(LABEL) {
+    case ('A'): {
+      feed = feeda;
+      break;
+    }
+    case ('B'): {
+      feed = feedb;
+      break;
+    }
+    case ('C'): {
+      feed = feedc;
+      break;
+    }
+    case ('D'): {
+      feed = feedd;
+      break;
+    }
+    case ('F'): {
+      ACs = true;
+      feed1->onMessage(handleChange);
+      feed2->onMessage(handleChange);
+      break;
     }
   }
 
-  Serial.print("Connecting to Adafruit IO");
-  io.connect();
+  if (!ACs) {
+    feed->onMessage(handleChange);
+    Serial.print("Selected feed is ");
+    Serial.println(feed->name);
+  }
+
+
   
   // wait for a connection
   unsigned long long timenow = millis();
-  while(io.status() < AIO_CONNECTED && timenow + TIMEOUT >= millis()) {
-    Serial.print(".");
-    printToOleds(".");
-    delay(1000);
+  while(io.status() < AIO_CONNECTED) {
+    printToDisplay("Connecting to AIO");
+    Serial.print("Connecting to Adafruit IO");
+    io.connect();
+
+    timenow = millis();
+    while(io.status() < AIO_CONNECTED && timenow + TIMEOUT >= millis()) {
+      Serial.print(".");
+      printToDisplay(".");
+      delay(1000);
+    }
+    
+    // we should connected
+    Serial.println(io.statusText());
+    printToDisplay((char*)io.statusText());
+
+    if (io.status() < AIO_CONNECTED) {
+      printToDisplay(" Retrying...");
+      delay(1000);
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.display();
+    }
   }
-  
-  // we are connected
-  Serial.println();
-  Serial.println(io.statusText());
-
-  printToOleds((char*)io.statusText());
-  delay(1000);
-
-  while (io.status() < AIO_CONNECTED) {
-    yield();
-  }
 
 
-  for (int i = 0; i < 4; i++) {
-    feeds[i]->onMessage(handleChange);
-    feeds[i]->get();
+  if (ACs) {
+    feed1->get();
+    feed2->get();
+  } else {
+    feed->get();
   }
 }
 
@@ -101,47 +140,59 @@ void loop() {
 
   // process messages and keep connection alive
   io.run();
-  if (millis() > timesincelastrefresh + 300000) {
-    refreshOled();
+  if (millis() > timesincelastrefresh + UPDATE) {
+    refreshDisplay();
+    updateFeed();
   }
 
   if (millis() > 36000000) {
-    for (int i = 0; i < 4; i++) {
-      oleds[i].clearDisplay();
-      oleds[i].display();
-    }
+    display.clearDisplay();
+    display.display();
     while(1);
   }
 
 }
 
-void printToOleds(const char* str) {
-  for (int i = 0; i < 4; i++) {
-    mux.setPort(i);
-    oleds[i].print(str);
-    oleds[i].display();
-  }
+void printToDisplay(const char* str) {
+  display.print(str);
+  display.display();
 }
 
-void refreshOled() {
-  xpos = random(0, 10);
-  ypos = random(18, 28);
-  for (int i = 0; i < 4; i++) {
-    mux.setPort(i);
-    oleds[i].setTextWrap(0);
-    oleds[i].clearDisplay();
-    oleds[i].setFont(LARGE_FONT);
-    oleds[i].setCursor(xpos, ypos);
-    oleds[i].print((char)(i + 65));
-    oleds[i].print(":");
-    if (strlen(names[i]) >= 7) {
-      oleds[i].setFont(MED_FONT);
-    }
-    oleds[i].print(" ");
-    oleds[i].print(names[i]);
-    oleds[i].setCursor(xpos, ypos + 10*(i+1));
-    oleds[i].display();
+void refreshDisplay() {
+  
+  static int xpos, ypos;
+  xpos = random(0, 8);
+  ypos = random(15, 23);
+
+  display.setTextWrap(0);
+  display.clearDisplay();
+  if (ACs) {
+    display.setCursor(0, 12);
+    display.setFont(MED_FONT);
+    display.print("1");
+    display.setFont(NULL);
+    display.print("st");
+    display.setFont(MED_FONT);
+    display.print(":");
+    display.print(first);
+    display.setCursor(0, 26);
+    display.print("2");
+    display.setFont(NULL);
+    display.print("nd");
+    display.setFont(MED_FONT);
+    display.print(":");
+    display.print(second);
+  } else {
+    display.setCursor(xpos, ypos);
+    display.setFont(LARGE_FONT);
+    display.print((char)LABEL);
+    display.print(":");
+    if (strlen(name) >= 8) display.setFont(MED_FONT);
+    display.print(" ");
+    display.print(name);
   }
+
+  display.display();
   
   timesincelastrefresh = millis();
 }
@@ -153,31 +204,27 @@ void handleChange(AdafruitIO_Data *data) {
   Serial.print(" is now: ");
   Serial.println(data->value());
 
-  if (strcmp(data->feedName(), "couples-a-op") == 0) {
-    updateOled('A', data->value());
-  } else if (strcmp(data->feedName(), "couples-b-op") == 0) {
-    updateOled('B', data->value());
-  } else if (strcmp(data->feedName(), "couples-c-op") == 0) {
-    updateOled('C', data->value());
-  } else if (strcmp(data->feedName(), "couples-d-op") == 0) {
-    updateOled('D', data->value());
+  char* deststr;
+
+  if (!strcmp(data->feedName(), "couples-1st")) {
+    deststr = first;
+    Serial.print("1st name is ");
+  } else if (!strcmp(data->feedName(), "couples-2nd")) {
+    deststr = second;
+    Serial.print("2nd name is ");
+  } else {
+    deststr = name;
+    Serial.print("name is ");
   }
   
+  strncpy(deststr, data->value(), 16);
+
+  Serial.println(deststr);
+
+  refreshDisplay();
 }
 
-void updateOled(const char cam, char* newname) {
-
-  int port = toupper(cam) - 65;
-
-  for (int i = 0; i < 16; i++) {
-    names[port][i] = newname[i];
-    if (newname[i] == '\0') {
-      break;
-    }
-  }
-
-  names[port][15] = '\0';
-
-  refreshOled();
-  
+void updateFeed() {
+  Serial.println("saving current name to keep feed active");
+  feed->save(name);
 }

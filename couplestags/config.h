@@ -1,6 +1,7 @@
 /************************ Adafruit IO Config *******************************/
 #include "aiokey.h"
-
+// visit io.adafruit.com if you need to create an account,
+// or if you need your Adafruit IO key.
 
 /******************************* WIFI **************************************/
 
@@ -17,8 +18,6 @@
 //   - Adafruit AirLift Shield -> https://www.adafruit.com/product/4285
 //   - Adafruit AirLift FeatherWing -> https://www.adafruit.com/product/4264
 
-#define WIFI_SSID "Chicken Coop"
-#define WIFI_PASS "ericarose21"
 
 // uncomment the following line if you are using airlift
 // #define USE_AIRLIFT
