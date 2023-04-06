@@ -16,7 +16,7 @@
 #define TIMEOUT 3000
 #define UPDATE 180000
 
-#define LABEL 'B'
+#define LABEL 'D'
 
 Adafruit_SSD1305 display(128, 32, &Wire1, -1);
 
@@ -25,6 +25,7 @@ AdafruitIO_Feed *feeda = io.feed("couples-a-op");
 AdafruitIO_Feed *feedb = io.feed("couples-b-op");
 AdafruitIO_Feed *feedc = io.feed("couples-c-op");
 AdafruitIO_Feed *feedd = io.feed("couples-d-op");
+
 AdafruitIO_Feed *feed1 = io.feed("couples-1st");
 AdafruitIO_Feed *feed2 = io.feed("couples-2nd");
 
@@ -35,7 +36,7 @@ char name[16];
 char first[16];
 char second[16];
 
-unsigned long long timesincelastrefresh = 0;
+unsigned long timesincelastrefresh = 0;
 
 void setup() {
 
@@ -51,19 +52,19 @@ void setup() {
   Serial.println("Serial initialized or timed out.");
 
 
-  if (!display.begin(SSD1305_I2C_ADDRESS, 0)) {
+  while (!display.begin(SSD1305_I2C_ADDRESS, 0)) {
     Serial.println("Display failed to initialize");
-    while(1) yield();
-  } else {
-    Serial.println("Display initialized");
-    display.clearDisplay();
-    display.setContrast(0x88);
-    display.setCursor(0,0);
-    display.setTextColor(WHITE);
-    display.setRotation(2);
-    display.setTextWrap(1);
-    display.display();
-  }
+    delay(100);
+  } 
+
+  Serial.println("Display initialized");
+  display.clearDisplay();
+  display.setContrast(0x88);
+  display.setCursor(0,0);
+  display.setTextColor(WHITE);
+  display.setRotation(2);
+  display.setTextWrap(1);
+  display.display();
 
 
   switch(LABEL) {
@@ -98,33 +99,26 @@ void setup() {
   }
 
 
-  
+  io.connect();
+
+
+  printToDisplay("Connecting to AIO");
+  Serial.print("Connecting to Adafruit IO");
+
   // wait for a connection
-  unsigned long long timenow = millis();
   while(io.status() < AIO_CONNECTED) {
-    printToDisplay("Connecting to AIO");
-    Serial.print("Connecting to Adafruit IO");
-    io.connect();
 
-    timenow = millis();
-    while(io.status() < AIO_CONNECTED && timenow + TIMEOUT >= millis()) {
-      Serial.print(".");
-      printToDisplay(".");
-      delay(1000);
+    if (io.status() == 0) {
+      io.connect();
     }
-    
-    // we should connected
-    Serial.println(io.statusText());
-    printToDisplay((char*)io.statusText());
-
-    if (io.status() < AIO_CONNECTED) {
-      printToDisplay(" Retrying...");
-      delay(1000);
-      display.clearDisplay();
-      display.setCursor(0, 0);
-      display.display();
-    }
+    Serial.println((char*)io.statusText());
+    printToDisplay(".");
+    delay(2000);
   }
+  
+  // we are connected
+  Serial.println(io.statusText());
+  printToDisplay((char*)io.statusText());
 
 
   if (ACs) {
@@ -133,6 +127,8 @@ void setup() {
   } else {
     feed->get();
   }
+
+  timesincelastrefresh = millis();
 }
 
 
@@ -140,6 +136,7 @@ void loop() {
 
   // process messages and keep connection alive
   io.run();
+
   if (millis() > timesincelastrefresh + UPDATE) {
     refreshDisplay();
     updateFeed();
@@ -194,7 +191,6 @@ void refreshDisplay() {
 
   display.display();
   
-  timesincelastrefresh = millis();
 }
 
 void handleChange(AdafruitIO_Data *data) {
@@ -226,5 +222,12 @@ void handleChange(AdafruitIO_Data *data) {
 
 void updateFeed() {
   Serial.println("saving current name to keep feed active");
-  feed->save(name);
+  if (ACs) {
+    feed1->save(first);
+    feed2->save(second);
+  } else {
+    feed->save(name);
+  }
+
+  timesincelastrefresh = millis();
 }
